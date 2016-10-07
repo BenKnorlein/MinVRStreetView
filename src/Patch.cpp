@@ -149,9 +149,11 @@ bool Patch::testVisibility(Frustum * frustum)
 	for (int i = 0; i < pointcoordsx.size(); i++){
 		if (frustum->testPoint(pointcoordsx[i],pointcoordsy[i],pointcoordsz[i]))
 		{
+			visibility = true;
 			return true;		
 		}
 	}
+	visibility = false;
 	return false;
 }
 
