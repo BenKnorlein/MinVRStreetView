@@ -7,6 +7,7 @@
 #include <main/VREventHandler.h>
 #include <main/VRRenderHandler.h>
 #include <math/VRMath.h>
+#include <input/VRInputDevice.h>
 
 #if defined(WIN32)
 #define NOMINMAX
@@ -25,16 +26,27 @@
 #include "Frustum.h"
 #include "Patch.h"
 
+enum Mode { idle, requestPanoId, waitForPanoID, requestData, waitForData };
+
 using namespace MinVR;
 
-class MyVRApp : public VREventHandler, public VRRenderHandler {
+class MyVRApp : public VREventHandler, public VRRenderHandler, public VRInputDevice {
 public:
-	MyVRApp(int argc, char** argv) : _vrMain(NULL){
+	MyVRApp(int argc, char** argv) : _vrMain(NULL), isMaster(false), mode(idle){
 		_vrMain = new VRMain();
 		_vrMain->initialize(argc, argv);
 		_vrMain->addEventHandler(this);
 		_vrMain->addRenderHandler(this);
+		_vrMain->addInputDevice(this);
 
+		//get all names from the config-file
+		std::list<std::string> names = _vrMain->getConfig()->selectByAttribute("hostType","*");
+
+		//check if it is the first entry and if it is set it as the master
+		if(names.size() > 0 && _vrMain->getName() == names.front()){
+			isMaster = true;
+			std::cerr << "I am the master : " << _vrMain->getName()  << std::endl;
+		}
 		frustum = new Frustum();
 	}
 
@@ -48,10 +60,27 @@ public:
 		}
 	}
 
+	//Function to append events
+	virtual void appendNewInputEventsSinceLastCall(VRDataQueue *queue){
+		for (int f = 0; f < _events.size(); f++)
+		{
+			queue->push(_events[f]);
+		}
+		_events.clear();
+	}
+
 	// Callback for event handling, inherited from VREventHandler
 	virtual void onVREvent(const std::string &eventName, VRDataIndex *eventData) {
-		if (eventName == "/KbdEsc_Down") {
-			
+		if (isMaster && mode == idle) {
+			std::cerr << eventName << std::endl;
+			if(eventName == "/Wand_Left_Btn_Down"){
+				mode = requestPanoId;
+			}
+		}
+		
+		if(eventName == "/ReloadImages"){
+				//Received on all nodes to update textures
+				std::cerr << "Reload Images" << std::endl;
 		}
 	}
 
@@ -119,12 +148,54 @@ public:
 		{
 			patches[i]->display();
 		}
-		std::cerr << "Draw" << std::endl;
 	}
 
 	void run() {
 		while (1) {
 			_vrMain->mainloop();
+			
+			if(isMaster){
+					
+				//the check here should be implemented in a switch statement. For now just with if statements
+				if(mode == requestPanoId)
+				{
+					//request a new PanoID and go to the next mode to wait for panID
+					std::cerr << "Request new PanoID" << std::endl;
+					mode = waitForPanoID;
+				}
+				if(mode == waitForPanoID)
+				{
+					//check if the panoID was received
+					bool panoIDreceived = true; // for now always true
+					if(panoIDreceived){
+						//ID received change mode
+						std::cerr << "PanoID received" << std::endl;
+						mode = requestData;
+					}
+				}
+				if(mode == requestData)
+				{
+					//request all new Images and go to the next mode to wait for completion
+					std::cerr << "Request new images" << std::endl;
+					mode = waitForData;
+				}
+				if(mode == waitForData)
+				{
+					//check if all images were received. 
+					bool datareceived = true; // for now always true
+					//send an event
+					if(datareceived){
+						//Data received. Go to idle mode
+						std::cerr << "All images received send event to update textures" << std::endl;					
+						mode = idle;
+						
+						//send a signal to update the textures	
+						VRDataIndex di;
+						di.addData("/ReloadImages","");
+						_events.push_back(di.serialize("/ReloadImages"));
+					}
+				}	
+			}
 		}
 	}
 
@@ -132,6 +203,11 @@ protected:
 	VRMain *_vrMain;
 	std::vector <Patch *> patches;
 	Frustum * frustum;
+	
+	bool isMaster;
+	Mode mode;
+	//Queue to send events from the master to the client
+	std::vector<std::string> _events;
 };
 
 
