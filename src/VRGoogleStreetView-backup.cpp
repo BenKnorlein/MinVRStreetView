@@ -9,7 +9,6 @@
 #include <math/VRMath.h>
 #include <input/VRInputDevice.h>
 
-
 #if defined(WIN32)
 #define NOMINMAX
 #include <windows.h>
@@ -26,22 +25,9 @@
 
 #include "Frustum.h"
 #include "Patch.h"
-#include "QTImageDownload.h"
 
 enum Mode { idle, requestPanoId, waitForPanoID, requestData, waitForData };
 
-int coord_it = 0;
-
-const std::vector<float> coord = {
-	41.8249943, -71.4021355,
-	41.8250898, -71.4020956,
-	41.825123,  -71.4019494,
-	41.8251404, -71.4017862,
-	41.8251631, -71.4015607,
-	41.8251685, -71.401344,
-	41.8250126, -71.4012936,
-	41.8249418, -71.4017257
-};
 using namespace MinVR;
 
 class MyVRApp : public VREventHandler, public VRRenderHandler, public VRInputDevice {
@@ -95,10 +81,6 @@ public:
 		if(eventName == "/ReloadImages"){
 				//Received on all nodes to update textures
 				std::cerr << "Reload Images" << std::endl;
-		                for (int i = 0; i < patches.size(); i++)
-        		        {
-                        		patches[i]->forceUpdate();
-                		}
 		}
 	}
 
@@ -179,62 +161,28 @@ public:
 				{
 					//request a new PanoID and go to the next mode to wait for panID
 					std::cerr << "Request new PanoID" << std::endl;
-					//currently only update after first button press
-					panograb = new PanoIDGrabber(coord.at(coord_it), coord.at(coord_it + 1));
-					if (coord_it >= coord.size() - 3){
-						coord_it = 0;
-					}else {
-						coord_it += 2;
-					}		
 					mode = waitForPanoID;
 				}
 				if(mode == waitForPanoID)
 				{
 					//check if the panoID was received
-					panoIDreceived = false;
-					if (panograb->hasDataReady()){
-						panoIDreceived = true; // for now always true
-				}
+					bool panoIDreceived = true; // for now always true
 					if(panoIDreceived){
 						//ID received change mode
 						std::cerr << "PanoID received" << std::endl;
-						panoID = panograb->getPanoID();
-						std::cout << panoID.toAscii().data() << std::endl;
-						panoIDreceived = false;
 						mode = requestData;
-						delete panograb;
-						panograb = NULL;
 					}
 				}
 				if(mode == requestData)
 				{
 					//request all new Images and go to the next mode to wait for completion
 					std::cerr << "Request new images" << std::endl;
-					for (int y = 0; y < 11; y++){
-						for (int x = 0; x < 26; x++){
-							grabber.push_back(new ImageGrab(panoID, x, y));
-							std::cout << "download image x: " << x << " y: " << y << std::endl;
-							MYQapp::getInstance()->processEvents();
-						}
-					}
-					
 					mode = waitForData;
 				}
 				if(mode == waitForData)
 				{
-						
 					//check if all images were received. 
-					datareceived = false; // for now always true
-					while (grabber.size() != 0){
-						MYQapp::getInstance()->processEvents();
-						for (int i = grabber.size() - 1; i>=0; i--){
-							if (grabber[i]->hasDataReady()){
-								delete grabber[i];
-								grabber.erase(grabber.begin() + i);
-							}
-						}
-						datareceived = true;
-					}
+					bool datareceived = true; // for now always true
 					//send an event
 					if(datareceived){
 						//Data received. Go to idle mode
@@ -246,8 +194,7 @@ public:
 						di.addData("/ReloadImages","");
 						_events.push_back(di.serialize("/ReloadImages"));
 					}
-				}
-				MYQapp::getInstance()->processEvents();	
+				}	
 			}
 		}
 	}
@@ -261,13 +208,6 @@ protected:
 	Mode mode;
 	//Queue to send events from the master to the client
 	std::vector<std::string> _events;
-
-private:
-	bool panoIDreceived;
-        bool datareceived;
-        QString panoID;
-        std::vector<ImageGrab*> grabber;
-	PanoIDGrabber * panograb;
 };
 
 

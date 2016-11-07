@@ -49,11 +49,13 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 SET(HEADERS 
 	src/Frustum.h
 	src/Patch.h	
+	src/QTImageDownload.h
 )
 SET(SOURCES
 	src/VRGoogleStreetView.cpp
 	src/Frustum.cpp
 	src/Patch.cpp
+	src/QTImageDownload.cpp
 )
 
 SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/bin)

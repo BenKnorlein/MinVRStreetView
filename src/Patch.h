@@ -27,6 +27,7 @@ public:
 	void initialise();
 	void display ();
 	void update();
+	void forceUpdate();
 
 	bool testVisibility(Frustum * frustum);
 	bool getVisibilty();
