@@ -26,12 +26,15 @@
 
 #include "Frustum.h"
 #include "Patch.h"
-#include "QTImageDownload.h"
+#include "ImageGrab.h"
+#include "MYQApp.h"
+#include "PanoGrab.h"
 
 enum Mode { idle, requestPanoId, waitForPanoID, requestData, waitForData };
 
 int coord_it = 0;
 
+//arbitary coordinate values
 const std::vector<float> coord = {
 	41.8249943, -71.4021355,
 	41.8250898, -71.4020956,
@@ -55,7 +58,7 @@ public:
 
 		//get all names from the config-file
 		std::list<std::string> names = _vrMain->getConfig()->selectByAttribute("hostType","*");
-
+		std::cerr << "hi" << std::endl;
 		//check if it is the first entry and if it is set it as the master
 		if(names.size() > 0 && _vrMain->getName() == names.front()){
 			isMaster = true;
@@ -89,6 +92,7 @@ public:
 			std::cerr << eventName << std::endl;
 			if(eventName == "/Wand_Left_Btn_Down"){
 				mode = requestPanoId;
+				std::cerr << "update left wand" << std::endl;
 			}
 		}
 		
@@ -179,8 +183,7 @@ public:
 				{
 					//request a new PanoID and go to the next mode to wait for panID
 					std::cerr << "Request new PanoID" << std::endl;
-					//currently only update after first button press
-					panograb = new PanoIDGrabber(coord.at(coord_it), coord.at(coord_it + 1));
+					panograb = new PanoGrab(coord.at(coord_it), coord.at(coord_it + 1));
 					if (coord_it >= coord.size() - 3){
 						coord_it = 0;
 					}else {
@@ -210,15 +213,10 @@ public:
 				{
 					//request all new Images and go to the next mode to wait for completion
 					std::cerr << "Request new images" << std::endl;
-					for (int y = 0; y < 11; y++){
-						for (int x = 0; x < 26; x++){
-							grabber.push_back(new ImageGrab(panoID, x, y));
-							std::cout << "download image x: " << x << " y: " << y << std::endl;
-							MYQapp::getInstance()->processEvents();
-						}
-					}
-					
+					grabber.push_back(new ImageGrab(panoID));
+					MYQapp::getInstance()->processEvents();
 					mode = waitForData;
+
 				}
 				if(mode == waitForData)
 				{
@@ -233,8 +231,9 @@ public:
 								grabber.erase(grabber.begin() + i);
 							}
 						}
-						datareceived = true;
 					}
+						datareceived = true;
+					
 					//send an event
 					if(datareceived){
 						//Data received. Go to idle mode
@@ -264,10 +263,10 @@ protected:
 
 private:
 	bool panoIDreceived;
-        bool datareceived;
-        QString panoID;
-        std::vector<ImageGrab*> grabber;
-	PanoIDGrabber * panograb;
+    bool datareceived;
+    QString panoID;
+    std::vector<ImageGrab*> grabber;
+	PanoGrab * panograb;
 };
 
 
