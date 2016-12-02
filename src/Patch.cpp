@@ -157,6 +157,9 @@ bool Patch::testVisibility(Frustum * frustum)
 	return false;
 }
 
+void Patch::forceUpdate(){
+	requiresUpdate = true;
+}
 
 void Patch::update()
 {
